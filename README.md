@@ -20,7 +20,7 @@ MQTT:
 
 XSLTForms:
 
-1. Hangs everything together. See (www.agencexml.com/xsltforms)[www.agencexml.com/xsltforms]
+1. Hangs everything together. See http://www.agencexml.com/xsltforms
 2. Two-way communication with MQTT
 3. Small selection control allows you to change colours if you're not connected.  
 
