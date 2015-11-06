@@ -1,0 +1,330 @@
+<?xml-stylesheet href="resources/xsltforms/xsltforms.xsl" type="text/xsl"?>
+<?xsltforms-options debug="no" ?>
+<?css-conversion no?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:xf="http://www.w3.org/2002/xforms"
+	xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+	<head>
+
+		<title>MQTT Demo V1</title>
+		<link type="text/css" href="css/mqttdemo.css" rel="stylesheet" />
+
+		<xf:model id="modelid">
+
+			<xf:instance id="connection" xmlns="">
+				<data>
+					<host>iot.eclipse.org</host>
+					<port>80</port>
+					<clientId>xsltforms</clientId>
+					<initialtopic>cheerlights</initialtopic>
+					<status>disconnected</status>
+					<message></message>
+					<colour>red</colour>
+				</data>
+			</xf:instance>
+
+			<xf:instance id="publish" xmlns="">
+				<data>
+					<topic>cheerlights</topic>
+					<message></message>
+					<qos>0</qos>
+					<retained>true</retained>
+
+				</data>
+			</xf:instance>
+
+			<xf:instance id="messagelog" xmlns="">
+				<data>
+					<event></event>
+				</data>
+			</xf:instance>
+
+			<xf:bind nodeset="instance('connection')">
+				<xf:bind nodeset="host" readonly="status = 'connected'" />
+				<xf:bind nodeset="port" readonly="status = 'connected'" />
+				<xf:bind nodeset="clientId" readonly="status = 'connected'" />
+				<xf:bind nodeset="cleanSession" type="xs:boolean" />
+			</xf:bind>
+
+			<xf:bind nodeset="instance('publish')" relevant="instance('connection')/status ='connected'" />
+
+			<xf:action ev:event="mqtt_set_status">
+				<xf:setvalue ref="status" value="event('status')" />
+				<xf:dispatch name="mqtt_sub_first" targetid="modelid"
+					if="event('status') = 'connected'" />
+				<xf:reset model="modelid" if="event('status') = 'disconnected'" />
+			</xf:action>
+
+			<xf:action ev:event="mqtt_sub_first">
+				<xf:load>
+					<xf:resource
+						value="concat('javascript:mqttsubfirst(&quot;',initialtopic,'&quot;)')" />
+				</xf:load>
+			</xf:action>
+
+			<xf:action ev:event="mqtt_message_arrived">
+				<xf:insert nodeset="instance('messagelog')/event" at="1"
+					position="before" />
+				<xf:setvalue ref="instance('messagelog')/event[1]"
+					value="concat(now(),' : ',event('topic'),' : ',event('message'))" />
+				<xf:load>
+					<xf:resource
+						value="concat('javascript:publish(&quot;',event('message'),'&quot;)')" />
+				</xf:load>
+				<xf:delete nodeset="instance('messagelog')/event[last()]"
+					if="count(instance('messagelog')/event) &gt; 5" />
+			</xf:action>
+
+			<!-- Random ClientId -->
+			<xf:action ev:event="xforms-ready">
+				<xf:setvalue ref="clientId"
+					value="concat('XF',substring(string(random()),12))" />
+			</xf:action>
+
+
+		</xf:model>
+	</head>
+	<body>
+		<div class="title">
+			<h2>MQTT Demo V1</h2>
+		</div>
+		<xf:group ref="instance('connection')" navindex="0">
+			<xf:output value="status" class="xforms-output {status}">
+				<xf:label>Status: </xf:label>
+			</xf:output>
+
+			<xf:input ref='host' incremental='false'>
+				<xf:label>Host: </xf:label>
+			</xf:input>
+			<xf:input ref="port">
+				<xf:label>Port: </xf:label>
+			</xf:input>
+			<xf:input ref="clientId">
+				<xf:label>ClientId: </xf:label>
+			</xf:input>
+			<xf:input ref="cleanSession">
+				<xf:label>Clean?: </xf:label>
+			</xf:input>
+			<xf:trigger id="mqttconnect" ref=".[status='disconnected']">
+				<xf:label>Connect</xf:label>
+				<xf:load ev:event="DOMActivate">
+					<xf:resource
+						value="concat('javascript:mqttstart(&quot;',host,'&quot;,&quot;',port,'&quot;,&quot;',clientId,'&quot;,&quot;',cleanSession,'&quot;)')" />
+				</xf:load>
+			</xf:trigger>
+			<xf:trigger id="mqttdisconnect" ref=".[status='connected']">
+				<xf:label>Disconnect</xf:label>
+				<xf:load ev:event="DOMActivate">
+					<xf:resource value="concat('javascript:mqttstop()','')" />
+				</xf:load>
+			</xf:trigger>
+
+		</xf:group>
+
+		<xf:group ref="instance('publish')">
+			<xf:input ref="topic">
+				<xf:label>Topic: </xf:label>
+			</xf:input>
+			<xf:input ref="message">
+				<xf:label>Message: </xf:label>
+			</xf:input>
+			<xf:select1 ref="qos" appearance="minimal">
+				<xf:label>QoS: </xf:label>
+				<xf:item>
+					<xf:label>0</xf:label>
+					<xf:value>0</xf:value>
+				</xf:item>
+				<xf:item>
+					<xf:label>1</xf:label>
+					<xf:value>1</xf:value>
+				</xf:item>
+				<xf:item>
+					<xf:label>2</xf:label>
+					<xf:value>2</xf:value>
+				</xf:item>
+			</xf:select1>
+
+			<xf:trigger id="mqttpublish">
+				<xf:label>Publish</xf:label>
+				<xf:load ev:event="DOMActivate">
+					<xf:resource
+						value="concat('javascript:mqttpublish(&quot;',topic,'&quot;,&quot;',message,'&quot;,&quot;',qos,'&quot;)')" />
+				</xf:load>
+			</xf:trigger>
+		</xf:group>
+		<hr />
+
+		<!-- MQTT See mqtt.org -->
+
+		<script src="js/mqttws31.js"></script>
+		<script>
+			/* Global MQTT client var */
+			var client;
+
+			/* Functions called by XForm triggers
+			*
+			*/
+
+			function mqttstart(host,port,clientId,cleanSession) {
+			client = new Paho.MQTT.Client(host, Number(port), clientId);
+			client.onMessageArrived = onMessageArrived;
+			client.onConnectionLost = onConnectionLost;
+
+			var options = {
+			timeout: 10,
+			onSuccess:onConnect,
+			onFailure:onFailure,
+			cleanSession: Boolean(cleanSession)
+			};
+			client.connect(options);
+			};
+
+			function mqttstop() {
+			client.disconnect();
+			};
+
+			function mqttsubfirst(topic) {
+			client.subscribe(topic);
+			};
+
+			function mqttpublish(topic,text,qos) {
+			var message = new Paho.MQTT.Message(text);
+			message.destinationName = topic;
+			message.qos=Number(qos);
+			client.send(message);
+			}
+
+
+			/* Utility Functions
+			*
+			*/
+
+			/* Call an event on an XForm */
+			function call_xform_event(xfevent,xfpayload) {
+			var model=document.getElementById("modelid")
+			XsltForms_xmlevents.dispatch(model,xfevent, null, null, null,
+			null,xfpayload);
+			}
+
+			/* Callbacks called by MQTT
+			*
+			*/
+
+			function onConnect() {
+			call_xform_event("mqtt_set_status",{status: "connected"});
+			};
+
+			function onFailure(responseObject) {
+			alert(client.clientId + ": " + responseObject.errorMessage);
+			};
+
+			function onConnectionLost(responseObject) {
+			if (responseObject.errorCode !== 0) {
+			alert(client.clientId + ": " + responseObject.errorMessage);
+			} else {
+			//We dsconnected
+			call_xform_event("mqtt_set_status",{status: "disconnected"})
+			}
+			};
+
+			function onMessageArrived(message) {
+			if (message.destinationName != 'PING') {
+			call_xform_event("mqtt_message_arrived",{
+			message: message.payloadString,
+			topic: message.destinationName
+			});
+			}
+			};
+		</script>
+
+
+		<!-- Processing see Processing.org -->
+		<script src="js/processing.min.js"></script>
+
+		<script>
+			function publish(c) {
+			var pjs = Processing.getInstanceById('canvas1');
+			if(pjs!=null) pjs.publishArrived(c);
+			}
+
+		</script>
+		<table>
+		<tr><td>
+				<canvas id="canvas1"
+					data-processing-sources="sketch_151105a/sketch_151105a.pde sketch_151105a/Baubles.pde sketch_151105a/SnowFlake.pde"></canvas>
+			</td>
+		<td valign="top">
+		<xf:group ref="instance('messagelog')">		
+			<xf:repeat id="results-repeat" nodeset="event">
+				<xf:output ref="." />
+			</xf:repeat>
+		</xf:group>	
+		</td>	
+		</tr>	
+		<tr><td>	
+			<xf:group ref="instance('connection')" navindex="0">
+
+
+				<xf:select1 ref="colour">
+					<xf:label>Manual Colour:</xf:label>
+					<xf:item>
+						<xf:label>red</xf:label>
+						<xf:value>red</xf:value>
+					</xf:item>
+					<xf:item>
+						<xf:label>blue</xf:label>
+						<xf:value>blue</xf:value>
+					</xf:item>
+					<xf:item>
+						<xf:label>yellow</xf:label>
+						<xf:value>yellow</xf:value>
+					</xf:item>
+					<xf:item>
+						<xf:label>green</xf:label>
+						<xf:value>green</xf:value>
+					</xf:item>
+					<xf:item>
+						<xf:label>cyan</xf:label>
+						<xf:value>cyan</xf:value>
+					</xf:item>
+					<xf:item>
+						<xf:label>white</xf:label>
+						<xf:value>white</xf:value>
+					</xf:item>
+					<xf:item>
+						<xf:label>warmwhite</xf:label>
+						<xf:value>warmwhite</xf:value>
+					</xf:item>
+					<xf:item>
+						<xf:label>purple</xf:label>
+						<xf:value>purple</xf:value>
+					</xf:item>
+					<xf:item>
+						<xf:label>magenta</xf:label>
+						<xf:value>magenta</xf:value>
+					</xf:item>
+					<xf:item>
+						<xf:label>orange</xf:label>
+						<xf:value>orange</xf:value>
+					</xf:item>
+					<xf:item>
+						<xf:label>pink</xf:label>
+						<xf:value>pink</xf:value>
+					</xf:item>
+					<xf:item>
+						<xf:label>black</xf:label>
+						<xf:value>black</xf:value>
+					</xf:item>
+					<xf:action ev:event="xforms-value-changed">
+						<xf:load ev:event="xforms.value-changed">
+							<xf:resource value="concat('javascript:publish(&quot;',.,'&quot;)')" />
+						</xf:load>
+					</xf:action>
+
+				</xf:select1>
+
+			</xf:group>
+</td></tr></table>
+
+	</body>
+</html>	
